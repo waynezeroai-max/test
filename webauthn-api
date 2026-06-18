@@ -1,0 +1,42 @@
+// DEMO ONLY — not for production
+
+async function registerDemo() {
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "Demo", id: location.hostname },
+      user: {
+        id: userId,
+        name: "demo@local",
+        displayName: "Demo User",
+      },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+      authenticatorSelection: {
+        residentKey: "required",
+        userVerification: "required",
+      },
+      attestation: "none",
+    },
+  });
+
+  // In a real app: send cred to server. Demo: stash id only.
+  localStorage.setItem("demoCredId", cred.id);
+  alert("Passkey saved on this device / iCloud / Google");
+}
+
+async function loginDemo() {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      userVerification: "required",
+      // discoverable passkey — OS shows picker
+    },
+  });
+
+  alert("Signed in with passkey: " + assertion.id);
+}

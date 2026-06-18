@@ -1,42 +1,115 @@
-// DEMO ONLY — not for production
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebAuthn Passkey Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 2rem auto; padding: 0 1rem; }
+    button { display: block; width: 100%; margin: 0.5rem 0; padding: 1rem; font-size: 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; overflow: auto; font-size: 0.85rem; }
+    .err { color: #c00; }
+    .ok { color: #060; }
+  </style>
+</head>
+<body>
+  <h1>Passkey demo</h1>
+  <p>Host: <code id="host"></code></p>
+  <p id="status"></p>
 
-async function registerDemo() {
-  const userId = crypto.getRandomValues(new Uint8Array(16));
-  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  <button type="button" id="btnRegister">Create passkey</button>
+  <button type="button" id="btnLogin">Sign in with passkey</button>
 
-  const cred = await navigator.credentials.create({
-    publicKey: {
-      challenge,
-      rp: { name: "Demo", id: location.hostname },
-      user: {
-        id: userId,
-        name: "demo@local",
-        displayName: "Demo User",
-      },
-      pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-      authenticatorSelection: {
-        residentKey: "required",
-        userVerification: "required",
-      },
-      attestation: "none",
-    },
-  });
+  <pre id="log"></pre>
 
-  // In a real app: send cred to server. Demo: stash id only.
-  localStorage.setItem("demoCredId", cred.id);
-  alert("Passkey saved on this device / iCloud / Google");
-}
+  <script>
+    const logEl = document.getElementById("log");
+    const statusEl = document.getElementById("status");
+    document.getElementById("host").textContent = location.hostname;
 
-async function loginDemo() {
-  const challenge = crypto.getRandomValues(new Uint8Array(32));
+    function log(msg, isError = false) {
+      logEl.textContent += (isError ? "ERROR: " : "") + msg + "\n";
+      if (isError) statusEl.innerHTML = '<span class="err">' + msg + "</span>";
+      else statusEl.innerHTML = '<span class="ok">' + msg + "</span>";
+    }
 
-  const assertion = await navigator.credentials.get({
-    publicKey: {
-      challenge,
-      userVerification: "required",
-      // discoverable passkey — OS shows picker
-    },
-  });
+    if (!window.PublicKeyCredential) {
+      log("WebAuthn not supported in this browser.", true);
+    }
 
-  alert("Signed in with passkey: " + assertion.id);
-}
+    // DEMO ONLY — not for production
+    async function registerDemo() {
+      const userId = crypto.getRandomValues(new Uint8Array(16));
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: {
+            name: "Demo",
+            // GitHub Pages: use hostname only, e.g. "yourname.github.io"
+            id: location.hostname,
+          },
+          user: {
+            id: userId,
+            name: "demo@local",
+            displayName: "Demo User",
+          },
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+          authenticatorSelection: {
+            residentKey: "required",
+            userVerification: "required",
+          },
+          attestation: "none",
+        },
+      });
+
+      if (!cred) {
+        throw new Error("No credential returned (user cancelled?)");
+      }
+
+      localStorage.setItem("demoCredId", cred.id);
+      log("Passkey created. ID saved in localStorage.");
+      alert("Passkey saved (device / iCloud / Google Password Manager)");
+    }
+
+    async function loginDemo() {
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
+
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          userVerification: "required",
+        },
+      });
+
+      if (!assertion) {
+        throw new Error("No assertion returned (user cancelled?)");
+      }
+
+      log("Signed in with passkey: " + assertion.id);
+      alert("Signed in with passkey: " + assertion.id);
+    }
+
+    document.getElementById("btnRegister").onclick = async () => {
+      logEl.textContent = "";
+      try {
+        await registerDemo();
+      } catch (e) {
+        log(e.message || String(e), true);
+        console.error(e);
+      }
+    };
+
+    document.getElementById("btnLogin").onclick = async () => {
+      logEl.textContent = "";
+      try {
+        await loginDemo();
+      } catch (e) {
+        log(e.message || String(e), true);
+        console.error(e);
+      }
+    };
+  </script>
+</body>
+</html>
